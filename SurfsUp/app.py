@@ -17,22 +17,26 @@ Measurement = Base.classes.measurement
 
 session = Session(engine)
 
-recent_date_str = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
-recent_date = dt.datetime.strptime(recent_date_str, "%Y-%m-%d").date()
+def populate_precipitation():
+    recent_date_str = session.query(Measurement.date).order_by(Measurement.date.desc()).first()[0]
+    recent_date = dt.datetime.strptime(recent_date_str, "%Y-%m-%d").date()
 
-# Calculate the date one year from the last date in data set.
-past_date = dt.datetime(year=recent_date.year - 1, month=recent_date.month, day=recent_date.day).date()
+    # Calculate the date one year from the last date in data set.
+    past_date = dt.datetime(year=recent_date.year - 1, month=recent_date.month, day=recent_date.day).date()
 
-# Perform a query to retrieve the date and precipitation scores
-sel = [Measurement.date, Measurement.prcp]
-last_year_data = session.query(*sel)\
-    .filter(Measurement.date >= past_date)\
-    .filter(Measurement.date <= recent_date)\
-    .order_by(Measurement.date.desc())\
-    .all()
+    # Perform a query to retrieve the date and precipitation scores
+    sel = [Measurement.date, Measurement.prcp]
+    last_year_data = session.query(*sel)\
+        .filter(Measurement.date >= past_date)\
+        .filter(Measurement.date <= recent_date)\
+        .order_by(Measurement.date.desc())\
+        .all()
 
-last_year_prcp_data = [{"date": result[0], "prcp": result[1]} for result in last_year_data]
+    return [{"date": result[0], "prcp": result[1]} for result in last_year_data]
 
+last_year_prcp_data = populate_precipitation()
+
+# Find all stations
 stations_data = session.query(Station).all()
 stations_result = [{"station": result.station,\
     "name": result.name,\
@@ -41,6 +45,7 @@ stations_result = [{"station": result.station,\
     "elevation": result.elevation\
 } for result in stations_data]
 
+# Find the most active station
 sel = [Measurement.station, func.count()]
 stations_count = session.query(*sel)\
     .group_by(Measurement.station)\
@@ -73,7 +78,16 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     print("Server received request for 'Home' page...")
-    return "Welcome to my 'Home' page!"
+    return (
+        f"Welcome to the Climate App API!<br/>"
+        f"Available Routes:<br/>"
+        f"/api/v1.0/precipitation<br/>"
+        f"/api/v1.0/stations<br/>"
+        f"/api/v1.0/tobs"
+        f"/api/v1.0/&lt;start&gt;<br/>"
+        f"/api/v1.0/&lt;start&gt;/&lt;end&gt;"
+    )
+
 
 @app.route("/api/v1.0/precipitation")
 def precipitation():
